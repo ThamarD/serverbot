@@ -830,6 +830,14 @@ function gather_metrics_disk {
     CURRENT_DISK_PERCENTAGE="$(df / --output=pcent -x tmpfs -x devtmpfs | tr -dc '0-9')"
 }
 
+function gather_metrics_mountdisk {
+    # file system metrics
+    TOTAL_MOUNTDISK_SIZE="$(df -h /dev/sda* --output=size -x tmpfs -x devtmpfs | sed -n '2 p' | tr -d ' ')"
+    CURRENT_MOUNTDISK_USAGE="$(df -h /dev/sda* --output=used -x tmpfs -x devtmpfs | sed -n '2 p' | tr -d ' ')"
+    CURRENT_MOUNTDISK_PERCENTAGE="$(df /dev/sda* --output=pcent -x tmpfs -x devtmpfs | tr -dc '0-9')"
+}
+
+
 function gather_metrics_threshold {
     # strip '%' of thresholds in serverbot.conf
     THRESHOLD_LOAD_NUMBER="$(echo "${THRESHOLD_LOAD}" | tr -d '%')"
@@ -896,6 +904,7 @@ function feature_overview_cli {
     gather_metrics_cpu
     gather_metrics_memory
     gather_metrics_disk
+	gather_metrics_mountdisk
 
     # output server overview to shell
     echo "SYSTEM"
@@ -916,6 +925,7 @@ function feature_overview_cli {
     echo "LOAD:         ${COMPLETE_LOAD}"
     echo "MEMORY:       ${USED_MEMORY}M / ${TOTAL_MEMORY}M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)"
     echo "DISK:         ${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)"
+    echo "MNTDSK:    ${CURRENT_MOUNTDISK_USAGE} / ${TOTAL_MOUNTDISK_SIZE} (${CURRENT_MOUNTDISK_PERCENTAGE}%)"
 
     # exit when done
     exit 0
@@ -928,10 +938,11 @@ function feature_overview_telegram {
     gather_information_distro
     gather_metrics_cpu
     gather_metrics_memory
-    gather_metrics_disk    
+    gather_metrics_disk
+    gather_metrics_mountdisk	
 
     # create message for telegram
-    TELEGRAM_MESSAGE="$(echo -e "<b>Host</b>:                  <code>${HOSTNAME}</code>\\n<b>OS</b>:                      <code>${OPERATING_SYSTEM}</code>\\n<b>Distro</b>:               <code>${DISTRO} ${DISTRO_VERSION}</code>\\n<b>Kernel</b>:              <code>${KERNEL_NAME} ${KERNEL_VERSION}</code>\\n<b>Architecture</b>:  <code>${ARCHITECTURE}</code>\\n<b>Uptime</b>:             <code>${UPTIME}</code>\\n\\n<b>Internal IP</b>:\\n<code>${INTERNAL_IP_ADDRESS}</code>\\n\\n<b>External IP</b>:\\n<code>${EXTERNAL_IP_ADDRESS}</code>\\n\\n<b>Load</b>:                  <code>${COMPLETE_LOAD}</code>\\n<b>Memory</b>:           <code>${USED_MEMORY} M / ${TOTAL_MEMORY} M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)</code>\\n<b>Disk</b>:                   <code>${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)</code>")"
+    TELEGRAM_MESSAGE="$(echo -e "<b>Host</b>:                  <code>${HOSTNAME}</code>\\n<b>OS</b>:                      <code>${OPERATING_SYSTEM}</code>\\n<b>Distro</b>:               <code>${DISTRO} ${DISTRO_VERSION}</code>\\n<b>Kernel</b>:              <code>${KERNEL_NAME} ${KERNEL_VERSION}</code>\\n<b>Architecture</b>:  <code>${ARCHITECTURE}</code>\\n<b>Uptime</b>:             <code>${UPTIME}</code>\\n\\n<b>Internal IP</b>:\\n<code>${INTERNAL_IP_ADDRESS}</code>\\n\\n<b>External IP</b>:\\n<code>${EXTERNAL_IP_ADDRESS}</code>\\n\\n<b>Load</b>:                  <code>${COMPLETE_LOAD}</code>\\n<b>Memory</b>:           <code>${USED_MEMORY} M / ${TOTAL_MEMORY} M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)</code>\\n<b>Disk</b>:                   <code>${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)</code>\\n<b>MntDsk</b>:              <code>${CURRENT_MOUNTDISK_USAGE} / ${TOTAL_MOUNTDISK_SIZE} (${CURRENT_MOUNTDISK_PERCENTAGE}%)</code>")"
 
     # call method_telegram
     method_telegram
@@ -946,6 +957,7 @@ function feature_metrics_cli {
     gather_metrics_cpu
     gather_metrics_memory
     gather_metrics_disk
+    gather_metrics_mountdisk
 
     # output server metrics to shell
     echo "HOST:     ${HOSTNAME}"
@@ -953,6 +965,7 @@ function feature_metrics_cli {
     echo "LOAD:     ${COMPLETE_LOAD}"
     echo "MEMORY:   ${USED_MEMORY}M / ${TOTAL_MEMORY}M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)"
     echo "DISK:     ${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)"
+    echo "MOUNTDISK:${CURRENT_MOUNTDISK_USAGE} / ${TOTAL_MOUNTDISK_SIZE} (${CURRENT_MOUNTDISK_PERCENTAGE}%)"
 
     # exit when done
     exit 0
@@ -964,9 +977,10 @@ function feature_metrics_telegram {
     gather_metrics_cpu
     gather_metrics_memory
     gather_metrics_disk
+	gather_metrics_mountdisk
 
     # create message for telegram
-    TELEGRAM_MESSAGE="$(echo -e "<b>Host</b>:        <code>${HOSTNAME}</code>\\n<b>Uptime</b>:  <code>${UPTIME}</code>\\n\\n<b>Load</b>:         <code>${COMPLETE_LOAD}</code>\\n<b>Memory</b>:  <code>${USED_MEMORY} M / ${TOTAL_MEMORY} M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)</code>\\n<b>Disk</b>:          <code>${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)</code>")"
+    TELEGRAM_MESSAGE="$(echo -e "<b>Host</b>:        <code>${HOSTNAME}</code>\\n<b>Uptime</b>:  <code>${UPTIME}</code>\\n\\n<b>Load</b>:         <code>${COMPLETE_LOAD}</code>\\n<b>Memory</b>:  <code>${USED_MEMORY} M / ${TOTAL_MEMORY} M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)</code>\\n<b>Disk</b>:          <code>${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)</code>\\n<b>MntDsk</b>:              <code>${CURRENT_MOUNTDISK_USAGE} / ${TOTAL_MOUNTDISK_SIZE} (${CURRENT_MOUNTDISK_PERCENTAGE}%)</code>")"
 
     # call method_telegram
     method_telegram
@@ -981,6 +995,7 @@ function feature_alert_cli {
     gather_metrics_cpu
     gather_metrics_memory
     gather_metrics_disk
+	gather_metrics_mountdisk
     gather_metrics_threshold
 
     # check whether the current server load exceeds the threshold and alert if true. Output server alert status to shell.
@@ -1002,6 +1017,12 @@ function feature_alert_cli {
         echo -e "[i] DISK USAGE:\\t\\tA current disk usage of ${CURRENT_DISK_PERCENTAGE}% does not exceed the threshold of ${THRESHOLD_DISK}."
     fi
 
+    if [ "${CURRENT_MOUNTDISK_PERCENTAGE}" -ge "${THRESHOLD_DISK_NUMBER}" ]; then
+        echo -e "[!] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% exceeds the threshold of ${THRESHOLD_DISK}."
+    else
+        echo -e "[i] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% does not exceed the threshold of ${THRESHOLD_DISK}."
+    fi
+
     # exit when done
     exit 0
 }
@@ -1012,6 +1033,7 @@ function feature_alert_telegram {
     gather_metrics_cpu
     gather_metrics_memory
     gather_metrics_disk
+ 	gather_metrics_mountdisk
     gather_metrics_threshold
 
     # check whether the current server load exceeds the threshold and alert if true
@@ -1036,6 +1058,15 @@ function feature_alert_telegram {
     if [ "${CURRENT_DISK_PERCENTAGE}" -ge "${THRESHOLD_DISK_NUMBER}" ]; then
         # create message for Telegram
         TELEGRAM_MESSAGE="$(echo -e "\xE2\x9A\xA0 <b>ALERT: FILE SYSTEM</b>\\n\\nDisk usage (<code>${CURRENT_DISK_PERCENTAGE}%</code>) on <b>${HOSTNAME}</b> exceeds the threshold of <code>${THRESHOLD_DISK}</code>\\n\\n<b>Filesystem info:</b>\\n<code>$(df -h)</code>")"
+
+        # call method_telegram
+        method_telegram
+    fi
+
+    # check whether the current mountdisk usaged exceeds the threshold and alert if true
+    if [ "${CURRENT_MOUNTDISK_PERCENTAGE}" -ge "${THRESHOLD_DISK_NUMBER}" ]; then
+        # create message for Telegram
+        TELEGRAM_MESSAGE="$(echo -e "\xE2\x9A\xA0 <b>ALERT: FILE SYSTEM</b>\\n\\nMountDisk usage (<code>${CURRENT_MOUNTDISK_PERCENTAGE}%</code>) on <b>${HOSTNAME}</b> exceeds the threshold of <code>${THRESHOLD_DISK}</code>\\n\\n<b>Filesystem info:</b>\\n<code>$(df -h)</code>")"
 
         # call method_telegram
         method_telegram
