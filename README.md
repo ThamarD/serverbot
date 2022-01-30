@@ -19,15 +19,15 @@ Aside from features, there are also different methods that can be used with the 
 | Telegram | Feature feedback or output to a Telegram bot. |
 
 Some examples from both Telegram and CLI:
-![alt text](https://raw.githubusercontent.com/nozel-org/serverbot/stable/resources/overview.jpg "feature examples")
+![alt text](https://raw.githubusercontent.com/ThamarD/serverbot/stable/resources/overview.jpg "feature examples")
 
 # Install serverbot
-Easy! But before you download software, always check its source code and/or credibility. Never trust random people on the internet ;-). If you are particularly gullible or like living on the edge, you can also skip this. To install, download [`serverbot.sh`](https://raw.githubusercontent.com/nozel-org/serverbot/stable/serverbot.sh) to your device and run `bash serverbot.sh --install` to install.
+Easy! But before you download software, always check its source code and/or credibility. Never trust random people on the internet ;-). If you are particularly gullible or like living on the edge, you can also skip this. To install, download [`serverbot.sh`](https://raw.githubusercontent.com/ThamarD/serverbot/stable/serverbot.sh) to your device and run `bash serverbot.sh --install` to install.
 
 Some common methods of downloading the file would be:
 ```
-wget https://raw.githubusercontent.com/nozel-org/serverbot/master/serverbot.sh
-curl -O https://raw.githubusercontent.com/nozel-org/serverbot/master/serverbot.sh
+wget https://raw.githubusercontent.com/ThamarD/serverbot/master/serverbot.sh
+curl -O https://raw.githubusercontent.com/ThamarD/serverbot/master/serverbot.sh
 ```
 
 # Use serverbot
@@ -64,7 +64,7 @@ Options:
 For information on how to aquire a Telegram bot, look at [Telegram's documentation](https://core.telegram.org/bots).
 
 # Support
-If you can't figure something out, take a look at the [documentation](https://github.com/nozel-org/serverbot/tree/stable/docs). If you can't figure it out on your own, [create a issue](https://github.com/nozel-org/serverbot/issues/new) and we'll help you when there is time. If you find bugs: please let us know!
+If you can't figure something out, take a look at the [documentation](https://github.com/ThamarD/serverbot/tree/stable/docs). If you can't figure it out on your own, [create a issue](https://github.com/ThamarD/serverbot/issues/new) and we'll help you when there is time. If you find bugs: please let us know!
 
 # Compatibility
 We try to support a wide range of linux distributions. As of now, support includes most distros set to English that use `dpkg` (`apt-get`, `apt`), `rpm` (`yum`, `dnf`), `systemd` and `bash`. This should include at least the following distributions (which have been tested during developement):
