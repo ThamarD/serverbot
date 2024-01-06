@@ -12,7 +12,7 @@
 #
 # Contact:
 # > e-mail      mail@nozel.org
-# > GitHub      nozel-org
+# > GitHub      ThamarD
 #############################################################################
 
 #############################################################################
@@ -601,11 +601,11 @@ function serverbot_install {
     mkdir -m 755 /etc/serverbot
     # install latest version serverbot and add permissions
     echo "[+] Installing latest version of serverbot..."
-    wget --quiet https://raw.githubusercontent.com/nozel-org/serverbot/${SERVERBOT_BRANCH}/serverbot.sh -O /usr/bin/serverbot
+    wget --quiet https://raw.githubusercontent.com/ThamarD/serverbot/${SERVERBOT_BRANCH}/serverbot.sh -O /usr/bin/serverbot
     chmod 755 /usr/bin/serverbot
     # add serverbot configuration file to /etc/serverbot and add permissions
     echo "[+] Adding configuration file to system..."
-    wget --quiet https://raw.githubusercontent.com/nozel-org/serverbot/${SERVERBOT_BRANCH}/serverbot.conf -O /etc/serverbot/serverbot.conf
+    wget --quiet https://raw.githubusercontent.com/ThamarD/serverbot/${SERVERBOT_BRANCH}/serverbot.conf -O /etc/serverbot/serverbot.conf
     chmod 644 /etc/serverbot/serverbot.conf
 
     # use current major version in /etc/serverbot/serverbot.conf
@@ -627,7 +627,7 @@ function serverbot_install {
 
 function compare_version {
     # source version information from github and remove dots
-    source <(curl --silent https://raw.githubusercontent.com/nozel-org/serverbot/${SERVERBOT_BRANCH}/resources/version.txt)
+    source <(curl --silent https://raw.githubusercontent.com/ThamarD/serverbot/${SERVERBOT_BRANCH}/resources/version.txt)
     SERVERBOT_VERSION_CURRENT_NUMBER="$(echo "${SERVERBOT_VERSION}" | tr -d '.')"
     SERVERBOT_VERSION_RELEASE_NUMBER="$(echo "${VERSION_SERVERBOT}" | tr -d '.')"
 
@@ -648,7 +648,7 @@ function serverbot_upgrade {
         echo "[i] Create temporary file for self-upgrade..."
         TMP_INSTALL="$(mktemp)"
         echo "[i] Download most recent version of serverbot..."
-        wget --quiet https://raw.githubusercontent.com/nozel-org/serverbot/${SERVERBOT_BRANCH}/serverbot.sh -O "${TMP_INSTALL}"
+        wget --quiet https://raw.githubusercontent.com/ThamarD/serverbot/${SERVERBOT_BRANCH}/serverbot.sh -O "${TMP_INSTALL}"
         echo "[i] Set permissions on installation script..."
         chmod 700 "${TMP_INSTALL}"
         echo "[i] Executing installation script..."
@@ -668,7 +668,7 @@ function serverbot_silent_upgrade {
         # create temporary file for self-upgrade
         TMP_INSTALL="$(mktemp)"
         # download most recent version of serverbot
-        wget --quiet https://raw.githubusercontent.com/nozel-org/serverbot/${SERVERBOT_BRANCH}/serverbot.sh -O "${TMP_INSTALL}"
+        wget --quiet https://raw.githubusercontent.com/ThamarD/serverbot/${SERVERBOT_BRANCH}/serverbot.sh -O "${TMP_INSTALL}"
         # set permissions on installation script
         chmod 700 "${TMP_INSTALL}"
         # executing installation script
@@ -684,7 +684,7 @@ function serverbot_self_upgrade {
     requirement_root
 
     # download most recent version and add permissions
-    wget --quiet https://raw.githubusercontent.com/nozel-org/serverbot/${SERVERBOT_BRANCH}/serverbot.sh -O /usr/bin/serverbot
+    wget --quiet https://raw.githubusercontent.com/ThamarD/serverbot/${SERVERBOT_BRANCH}/serverbot.sh -O /usr/bin/serverbot
     chmod 755 /usr/bin/serverbot
     echo "[i] Serverbot upgraded to version ${SERVERBOT_VERSION}..."
 
@@ -884,7 +884,7 @@ function gather_eol {
     EOL_OS_NAME="EOL_${EOL_OS}"
 
     # source database with eol data
-    source <(curl --silent https://raw.githubusercontent.com/nozel-org/serverbot/${SERVERBOT_BRANCH}/resources/eol.list | tr -d '.')
+    source <(curl --silent https://raw.githubusercontent.com/ThamarD/serverbot/${SERVERBOT_BRANCH}/resources/eol.list | tr -d '.')
 
     # calculate epoch difference between current date and eol date
     EPOCH_EOL="$(date --date=$(echo "${!EOL_OS_NAME}") +%s)"
