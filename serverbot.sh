@@ -41,7 +41,7 @@ else
     THRESHOLD_DISK='80%'
 
     # and default to stable branch
-    SERVERBOT_BRANCH='unstable'
+    SERVERBOT_BRANCH='stable'
 fi
 
 #############################################################################
