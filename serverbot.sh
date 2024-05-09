@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #############################################################################
-# Version 1.2.0-UNSTABLE (20-10-2019)
+# Version 1.2.1-UNSTABLE (09-05-2024)
 #############################################################################
 
 #############################################################################
@@ -20,7 +20,7 @@
 #############################################################################
 
 # serverbot version
-SERVERBOT_VERSION='1.2.0'
+SERVERBOT_VERSION='1.2.1'
 
 # check whether serverbot.conf is available and source it
 if [ -f /etc/serverbot/serverbot.conf ]; then
@@ -843,6 +843,7 @@ function gather_metrics_threshold {
     THRESHOLD_LOAD_NUMBER="$(echo "${THRESHOLD_LOAD}" | tr -d '%')"
     THRESHOLD_MEMORY_NUMBER="$(echo "${THRESHOLD_MEMORY}" | tr -d '%')"
     THRESHOLD_DISK_NUMBER="$(echo "${THRESHOLD_DISK}" | tr -d '%')"
+    THRESHOLD_MOUNTDISK_NUMBER="$(echo "${THRESHOLD_DISK}" | tr -d '%')"
 }
 
 function gather_updates {
@@ -1017,10 +1018,10 @@ function feature_alert_cli {
         echo -e "[i] DISK USAGE:\\t\\tA current disk usage of ${CURRENT_DISK_PERCENTAGE}% does not exceed the threshold of ${THRESHOLD_DISK}."
     fi
 
-    if [ "${CURRENT_MOUNTDISK_PERCENTAGE}" -ge "${THRESHOLD_DISK_NUMBER}" ]; then
-        echo -e "[!] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% exceeds the threshold of ${THRESHOLD_DISK}."
+    if [ "${CURRENT_MOUNTDISK_PERCENTAGE}" -ge "${THRESHOLD_MOUNTDISK_NUMBER}" ]; then
+        echo -e "[!] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% exceeds the threshold of ${THRESHOLD_MOUNTDISK_NUMBER}."
     else
-        echo -e "[i] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% does not exceed the threshold of ${THRESHOLD_DISK}."
+        echo -e "[i] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% does not exceed the threshold of ${THRESHOLD_MOUNTDISK_NUMBER}."
     fi
 
     # exit when done
@@ -1064,7 +1065,7 @@ function feature_alert_telegram {
     fi
 
     # check whether the current mountdisk usaged exceeds the threshold and alert if true
-    if [ "${CURRENT_MOUNTDISK_PERCENTAGE}" -ge "${THRESHOLD_DISK_NUMBER}" ]; then
+    if [ "${CURRENT_MOUNTDISK_PERCENTAGE}" -ge "${THRESHOLD_MOUNTDISK_NUMBER}" ]; then
         # create message for Telegram
         TELEGRAM_MESSAGE="$(echo -e "\xE2\x9A\xA0 <b>ALERT: FILE SYSTEM</b>\\n\\nMountDisk usage (<code>${CURRENT_MOUNTDISK_PERCENTAGE}%</code>) on <b>${HOSTNAME}</b> exceeds the threshold of <code>${THRESHOLD_DISK}</code>\\n\\n<b>Filesystem info:</b>\\n<code>$(df -h)</code>")"
 
