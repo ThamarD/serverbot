@@ -831,24 +831,62 @@ function gather_metrics_disk {
 }
 
 function gather_metrics_mountdisk {
-    # zoek het device waarop / staat (bijv. /dev/sda1, /dev/vda1, /dev/nvme0n1p2, /dev/mapper/...)
-    ROOT_DEV="$(df / --output=source | sed -n '2p')"
+    # Bouw een lijst van "echte" datadisks:
+    # - mountpoints onder /mnt, /data, /srv
+    # - geen tmpfs/devtmpfs/overlay
+    # - size >= 1G (G of T)
+    #
+    # Resultaat in MOUNTDISK_OUTPUT:
+    #   /mnt/data: 500G / 1.0T (50%)
+    #   /data/logs: 200G / 500G (40%)
+    #
+    # Als er niks is: "N/A"
 
-    # als we om wat voor reden geen device hebben kunnen vinden: vul N/A in en ga terug
-    if [ -z "${ROOT_DEV}" ]; then
-        TOTAL_MOUNTDISK_SIZE='N/A'
-        CURRENT_MOUNTDISK_USAGE='N/A'
-        CURRENT_MOUNTDISK_PERCENTAGE='N/A'
-        return
+    MOUNTDISK_OUTPUT=''
+
+    while read -r target source size used pcent; do
+        # header overslaan ("Mounted on")
+        if [ "${target}" = "Mounted" ]; then
+            continue
+        fi
+
+        # alleen mountpoints onder /mnt, /data, /srv
+        case "${target}" in
+            /mnt*|/data*|/srv*)
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        # tmpfs/devtmpfs/overlay overslaan
+        case "${source}" in
+            tmpfs|devtmpfs|overlay)
+                continue
+                ;;
+        esac
+
+        # alleen disks >= 1G (G of T)
+        if ! echo "${size}" | grep -Eq '^[0-9]+[GT]$'; then
+            continue
+        fi
+
+        # % strippen
+        pct="${pcent%%%}"
+
+        # Regel toevoegen: /mnt/data: used / size (pct%)
+        MOUNTDISK_OUTPUT+="${target}: ${used} / ${size} (${pct}%)"$'\n'
+    done < <(df -h --output=target,source,size,used,pcent)
+
+    # Als er niets gevonden is → N/A
+    if [ -z "${MOUNTDISK_OUTPUT}" ]; then
+        MOUNTDISK_OUTPUT='N/A'
+    else
+        # trailing newline wegknippen
+        MOUNTDISK_OUTPUT="${MOUNTDISK_OUTPUT%$'\n'}"
     fi
-
-    # lees de totale grootte en gebruikte ruimte van het device
-    TOTAL_MOUNTDISK_SIZE="$(df -h "${ROOT_DEV}" --output=size | sed -n '2p' | tr -d ' ')"
-    CURRENT_MOUNTDISK_USAGE="$(df -h "${ROOT_DEV}" --output=used | sed -n '2p' | tr -d ' ')"
-
-    # alleen het numerieke percentage (zonder %)
-    CURRENT_MOUNTDISK_PERCENTAGE="$(df "${ROOT_DEV}" --output=pcent | sed -n '2p' | tr -dc '0-9')"
 }
+
 
 function gather_metrics_threshold {
     # strip '%' of thresholds in serverbot.conf
@@ -917,7 +955,7 @@ function feature_overview_cli {
     gather_metrics_cpu
     gather_metrics_memory
     gather_metrics_disk
-	gather_metrics_mountdisk
+    gather_metrics_mountdisk
 
     # output server overview to shell
     echo "SYSTEM"
@@ -929,7 +967,7 @@ function feature_overview_cli {
     echo "UPTIME:       ${UPTIME}"
     echo
     echo 'INTERNAL IP:'
-    printf '%s\n'       ${INTERNAL_IP_ADDRESS}
+    printf '%s\n' ${INTERNAL_IP_ADDRESS}
     echo
     echo "EXTERNAL IP:"
     echo "${EXTERNAL_IP_ADDRESS}"
@@ -938,7 +976,15 @@ function feature_overview_cli {
     echo "LOAD:         ${COMPLETE_LOAD}"
     echo "MEMORY:       ${USED_MEMORY}M / ${TOTAL_MEMORY}M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)"
     echo "DISK:         ${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)"
-    echo "MNTDSK:       ${CURRENT_MOUNTDISK_USAGE} / ${TOTAL_MOUNTDISK_SIZE} (${CURRENT_MOUNTDISK_PERCENTAGE}%)"
+
+    # nette MNTDSK-weergave
+    echo -n "MNTDSK: "
+    if [ "${MOUNTDISK_OUTPUT}" = "N/A" ]; then
+        echo "N/A"
+    else
+        echo
+        echo "${MOUNTDISK_OUTPUT}" | sed 's/^/           /'
+    fi
 
     # exit when done
     exit 0
@@ -952,10 +998,34 @@ function feature_overview_telegram {
     gather_metrics_cpu
     gather_metrics_memory
     gather_metrics_disk
-    gather_metrics_mountdisk	
+    gather_metrics_mountdisk
+
+    # MNTDSK formatting voor Telegram (HTML)
+    if [ "${MOUNTDISK_OUTPUT}" = "N/A" ]; then
+        TELEGRAM_MNTDSK="<b>MntDsk</b>: <code>N/A</code>"
+    else
+        TELEGRAM_MNTDSK="<b>MntDsk</b>:\n<code>${MOUNTDISK_OUTPUT}</code>"
+    fi
 
     # create message for telegram
-    TELEGRAM_MESSAGE="$(echo -e "<b>Host</b>:                  <code>${HOSTNAME}</code>\\n<b>OS</b>:                      <code>${OPERATING_SYSTEM}</code>\\n<b>Distro</b>:               <code>${DISTRO} ${DISTRO_VERSION}</code>\\n<b>Kernel</b>:              <code>${KERNEL_NAME} ${KERNEL_VERSION}</code>\\n<b>Architecture</b>:  <code>${ARCHITECTURE}</code>\\n<b>Uptime</b>:             <code>${UPTIME}</code>\\n\\n<b>Internal IP</b>:\\n<code>${INTERNAL_IP_ADDRESS}</code>\\n\\n<b>External IP</b>:\\n<code>${EXTERNAL_IP_ADDRESS}</code>\\n\\n<b>Load</b>:                  <code>${COMPLETE_LOAD}</code>\\n<b>Memory</b>:           <code>${USED_MEMORY} M / ${TOTAL_MEMORY} M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)</code>\\n<b>Disk</b>:                   <code>${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)</code>\\n<b>MntDsk</b>:              <code>${CURRENT_MOUNTDISK_USAGE} / ${TOTAL_MOUNTDISK_SIZE} (${CURRENT_MOUNTDISK_PERCENTAGE}%)</code>")"
+    TELEGRAM_MESSAGE="$(echo -e "\
+<b>Host</b>:                  <code>${HOSTNAME}</code>\n\
+<b>OS</b>:                    <code>${OPERATING_SYSTEM}</code>\n\
+<b>Distro</b>:                <code>${DISTRO} ${DISTRO_VERSION}</code>\n\
+<b>Kernel</b>:                <code>${KERNEL_NAME} ${KERNEL_VERSION}</code>\n\
+<b>Architecture</b>:          <code>${ARCHITECTURE}</code>\n\
+<b>Uptime</b>:                <code>${UPTIME}</code>\n\
+\n\
+<b>Internal IP</b>:\n\
+<code>${INTERNAL_IP_ADDRESS}</code>\n\
+\n\
+<b>External IP</b>:\n\
+<code>${EXTERNAL_IP_ADDRESS}</code>\n\
+\n\
+<b>Load</b>:                  <code>${COMPLETE_LOAD}</code>\n\
+<b>Memory</b>:                <code>${USED_MEMORY} M / ${TOTAL_MEMORY} M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)</code>\n\
+<b>Disk</b>:                  <code>${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)</code>\n\
+${TELEGRAM_MNTDSK}")"
 
     # call method_telegram
     method_telegram
@@ -978,7 +1048,14 @@ function feature_metrics_cli {
     echo "LOAD:     ${COMPLETE_LOAD}"
     echo "MEMORY:   ${USED_MEMORY}M / ${TOTAL_MEMORY}M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)"
     echo "DISK:     ${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)"
-    echo "MOUNTDISK:${CURRENT_MOUNTDISK_USAGE} / ${TOTAL_MOUNTDISK_SIZE} (${CURRENT_MOUNTDISK_PERCENTAGE}%)"
+
+    echo -n "MOUNTDISK: "
+    if [ "${MOUNTDISK_OUTPUT}" = "N/A" ]; then
+        echo "N/A"
+    else
+        echo
+        echo "${MOUNTDISK_OUTPUT}" | sed 's/^/          /'
+    fi
 
     # exit when done
     exit 0
@@ -990,10 +1067,24 @@ function feature_metrics_telegram {
     gather_metrics_cpu
     gather_metrics_memory
     gather_metrics_disk
-	gather_metrics_mountdisk
+    gather_metrics_mountdisk
+
+    # MNTDSK formatting voor Telegram
+    if [ "${MOUNTDISK_OUTPUT}" = "N/A" ]; then
+        TELEGRAM_MNTDSK="<b>MntDsk</b>: <code>N/A</code>"
+    else
+        TELEGRAM_MNTDSK="<b>MntDsk</b>:\n<code>${MOUNTDISK_OUTPUT}</code>"
+    fi
 
     # create message for telegram
-    TELEGRAM_MESSAGE="$(echo -e "<b>Host</b>:        <code>${HOSTNAME}</code>\\n<b>Uptime</b>:  <code>${UPTIME}</code>\\n\\n<b>Load</b>:         <code>${COMPLETE_LOAD}</code>\\n<b>Memory</b>:  <code>${USED_MEMORY} M / ${TOTAL_MEMORY} M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)</code>\\n<b>Disk</b>:          <code>${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)</code>\\n<b>MntDsk</b>:              <code>${CURRENT_MOUNTDISK_USAGE} / ${TOTAL_MOUNTDISK_SIZE} (${CURRENT_MOUNTDISK_PERCENTAGE}%)</code>")"
+    TELEGRAM_MESSAGE="$(echo -e "\
+<b>Host</b>:        <code>${HOSTNAME}</code>\n\
+<b>Uptime</b>:      <code>${UPTIME}</code>\n\
+\n\
+<b>Load</b>:        <code>${COMPLETE_LOAD}</code>\n\
+<b>Memory</b>:      <code>${USED_MEMORY} M / ${TOTAL_MEMORY} M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)</code>\n\
+<b>Disk</b>:        <code>${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)</code>\n\
+${TELEGRAM_MNTDSK}")"
 
     # call method_telegram
     method_telegram
