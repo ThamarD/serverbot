@@ -80,7 +80,7 @@ while test -n "$1"; do
 
         --validate)
             ARGUMENT_VALIDATE='1'
-            ARGUMENT_OPTIONS='1'
+            ARGUMENT_OPTION='1'
             shift
             ;;
 
@@ -831,12 +831,24 @@ function gather_metrics_disk {
 }
 
 function gather_metrics_mountdisk {
-    # file system metrics
-    TOTAL_MOUNTDISK_SIZE="$(df -h /dev/sda* --output=size -x tmpfs -x devtmpfs | sed -n '2 p' | tr -d ' ')"
-    CURRENT_MOUNTDISK_USAGE="$(df -h /dev/sda* --output=used -x tmpfs -x devtmpfs | sed -n '2 p' | tr -d ' ')"
-    CURRENT_MOUNTDISK_PERCENTAGE="$(df /dev/sda* --output=pcent -x tmpfs -x devtmpfs | tr -dc '0-9')"
-}
+    # zoek het device waarop / staat (bijv. /dev/sda1, /dev/vda1, /dev/nvme0n1p2, /dev/mapper/...)
+    ROOT_DEV="$(df / --output=source | sed -n '2p')"
 
+    # als we om wat voor reden geen device hebben kunnen vinden: vul N/A in en ga terug
+    if [ -z "${ROOT_DEV}" ]; then
+        TOTAL_MOUNTDISK_SIZE='N/A'
+        CURRENT_MOUNTDISK_USAGE='N/A'
+        CURRENT_MOUNTDISK_PERCENTAGE='N/A'
+        return
+    fi
+
+    # lees de totale grootte en gebruikte ruimte van het device
+    TOTAL_MOUNTDISK_SIZE="$(df -h "${ROOT_DEV}" --output=size | sed -n '2p' | tr -d ' ')"
+    CURRENT_MOUNTDISK_USAGE="$(df -h "${ROOT_DEV}" --output=used | sed -n '2p' | tr -d ' ')"
+
+    # alleen het numerieke percentage (zonder %)
+    CURRENT_MOUNTDISK_PERCENTAGE="$(df "${ROOT_DEV}" --output=pcent | sed -n '2p' | tr -dc '0-9')"
+}
 
 function gather_metrics_threshold {
     # strip '%' of thresholds in serverbot.conf
@@ -926,7 +938,7 @@ function feature_overview_cli {
     echo "LOAD:         ${COMPLETE_LOAD}"
     echo "MEMORY:       ${USED_MEMORY}M / ${TOTAL_MEMORY}M (${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%)"
     echo "DISK:         ${CURRENT_DISK_USAGE} / ${TOTAL_DISK_SIZE} (${CURRENT_DISK_PERCENTAGE}%)"
-    echo "MNTDSK:    ${CURRENT_MOUNTDISK_USAGE} / ${TOTAL_MOUNTDISK_SIZE} (${CURRENT_MOUNTDISK_PERCENTAGE}%)"
+    echo "MNTDSK:       ${CURRENT_MOUNTDISK_USAGE} / ${TOTAL_MOUNTDISK_SIZE} (${CURRENT_MOUNTDISK_PERCENTAGE}%)"
 
     # exit when done
     exit 0
@@ -1018,11 +1030,11 @@ function feature_alert_cli {
         echo -e "[i] DISK USAGE:\\t\\tA current disk usage of ${CURRENT_DISK_PERCENTAGE}% does not exceed the threshold of ${THRESHOLD_DISK}."
     fi
 
-#    if [ "${CURRENT_MOUNTDISK_PERCENTAGE}" -ge "${THRESHOLD_MOUNTDISK_NUMBER}" ]; then
-#        echo -e "[!] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% exceeds the threshold of ${THRESHOLD_MOUNTDISK_NUMBER}."
-#    else
-#        echo -e "[i] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% does not exceed the threshold of ${THRESHOLD_MOUNTDISK_NUMBER}."
-#    fi
+    if [ "${CURRENT_MOUNTDISK_PERCENTAGE}" -ge "${THRESHOLD_MOUNTDISK_NUMBER}" ]; then
+        echo -e "[!] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% exceeds the threshold of ${THRESHOLD_MOUNTDISK_NUMBER}."
+    else
+        echo -e "[i] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% does not exceed the threshold of ${THRESHOLD_MOUNTDISK_NUMBER}."
+    fi
 
     # exit when done
     exit 0
