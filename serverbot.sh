@@ -1099,37 +1099,77 @@ function feature_alert_cli {
     gather_metrics_cpu
     gather_metrics_memory
     gather_metrics_disk
-	gather_metrics_mountdisk
     gather_metrics_threshold
 
-    # check whether the current server load exceeds the threshold and alert if true. Output server alert status to shell.
+    # check load
     if [ "${CURRENT_LOAD_PERCENTAGE_ROUNDED}" -ge "${THRESHOLD_LOAD_NUMBER}" ]; then
-        echo -e "[!] SERVER LOAD:\\tA current server load of ${CURRENT_LOAD_PERCENTAGE_ROUNDED}% exceeds the threshold of ${THRESHOLD_LOAD}."
+        echo -e "[!] SERVER LOAD:\tA current server load of ${CURRENT_LOAD_PERCENTAGE_ROUNDED}% exceeds the threshold of ${THRESHOLD_LOAD}."
     else
-        echo -e "[i] SERVER LOAD:\\tA current server load of ${CURRENT_LOAD_PERCENTAGE_ROUNDED}% does not exceed the threshold of ${THRESHOLD_LOAD}."
+        echo -e "[i] SERVER LOAD:\tA current server load of ${CURRENT_LOAD_PERCENTAGE_ROUNDED}% does not exceed the threshold of ${THRESHOLD_LOAD}."
     fi
 
+    # check memory
     if [ "${CURRENT_MEMORY_PERCENTAGE_ROUNDED}" -ge "${THRESHOLD_MEMORY_NUMBER}" ]; then
-        echo -e "[!] SERVER MEMORY:\\tA current memory usage of ${CURRENT_MEMORY_PERCENTAGE_ROUNDED}% exceeds the threshold of ${THRESHOLD_MEMORY}."
+        echo -e "[!] SERVER MEMORY:\tA current memory usage of ${CURRENT_MEMORY_PERCENTAGE_ROUNDED}% exceeds the threshold of ${THRESHOLD_MEMORY}."
     else
-        echo -e "[i] SERVER MEMORY:\\tA current memory usage of ${CURRENT_MEMORY_PERCENTAGE_ROUNDED}% does not exceed the threshold of ${THRESHOLD_MEMORY}."
+        echo -e "[i] SERVER MEMORY:\tA current memory usage of ${CURRENT_MEMORY_PERCENTAGE_ROUNDED}% does not exceed the threshold of ${THRESHOLD_MEMORY}."
     fi
 
+    # check root disk (/)
     if [ "${CURRENT_DISK_PERCENTAGE}" -ge "${THRESHOLD_DISK_NUMBER}" ]; then
-        echo -e "[!] DISK USAGE:\\t\\tA current disk usage of ${CURRENT_DISK_PERCENTAGE}% exceeds the threshold of ${THRESHOLD_DISK}."
+        echo -e "[!] DISK USAGE:\t\tA current disk usage of ${CURRENT_DISK_PERCENTAGE}% exceeds the threshold of ${THRESHOLD_DISK}."
     else
-        echo -e "[i] DISK USAGE:\\t\\tA current disk usage of ${CURRENT_DISK_PERCENTAGE}% does not exceed the threshold of ${THRESHOLD_DISK}."
+        echo -e "[i] DISK USAGE:\t\tA current disk usage of ${CURRENT_DISK_PERCENTAGE}% does not exceed the threshold of ${THRESHOLD_DISK}."
     fi
 
-    if [ "${CURRENT_MOUNTDISK_PERCENTAGE}" -ge "${THRESHOLD_MOUNTDISK_NUMBER}" ]; then
-        echo -e "[!] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% exceeds the threshold of ${THRESHOLD_MOUNTDISK_NUMBER}."
+    # check data disks under /mnt, /data, /srv (>= 1G)
+    DATADISK_ALERTS=""
+    while read -r target source size used pcent; do
+        # header overslaan
+        if [ "${target}" = "Mounted" ]; then
+            continue
+        fi
+
+        # alleen mountpoints onder /mnt, /data, /srv
+        case "${target}" in
+            /mnt*|/data*|/srv*)
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        # tmpfs/devtmpfs/overlay overslaan
+        case "${source}" in
+            tmpfs|devtmpfs|overlay)
+                continue
+                ;;
+        esac
+
+        # alleen disks >= 1G
+        if ! echo "${size}" | grep -Eq '^[0-9]+[GT]$'; then
+            continue
+        fi
+
+        # % strippen
+        pct="${pcent%%%}"
+
+        # check tegen threshold
+        if [ "${pct}" -ge "${THRESHOLD_DISK_NUMBER}" ]; then
+            DATADISK_ALERTS+="- ${target}: ${used} / ${size} (${pct}%)"$'\n'
+        fi
+    done < <(df -h --output=target,source,size,used,pcent)
+
+    if [ -n "${DATADISK_ALERTS}" ]; then
+        echo -e "[!] DATADISK USAGE:\n${DATADISK_ALERTS}"
     else
-        echo -e "[i] MOUNTDISK USAGE:\\t\\tA current mountdisk usage of ${CURRENT_MOUNTDISK_PERCENTAGE}% does not exceed the threshold of ${THRESHOLD_MOUNTDISK_NUMBER}."
+        echo "[i] DATADISK USAGE: No mounts under /mnt, /data or /srv exceed the threshold of ${THRESHOLD_DISK}."
     fi
 
     # exit when done
     exit 0
 }
+
 
 function feature_alert_telegram {
     # function requirements
@@ -1137,48 +1177,73 @@ function feature_alert_telegram {
     gather_metrics_cpu
     gather_metrics_memory
     gather_metrics_disk
- 	gather_metrics_mountdisk
     gather_metrics_threshold
 
-    # check whether the current server load exceeds the threshold and alert if true
+    # ALERT: server load
     if [ "${CURRENT_LOAD_PERCENTAGE_ROUNDED}" -ge "${THRESHOLD_LOAD_NUMBER}" ]; then
-        # create message for Telegram
-        TELEGRAM_MESSAGE="$(echo -e "\xE2\x9A\xA0 <b>ALERT: SERVER LOAD</b>\\n\\nThe server load (<code>${CURRENT_LOAD_PERCENTAGE_ROUNDED}%</code>) on <b>${HOSTNAME}</b> exceeds the threshold of <code>${THRESHOLD_LOAD}</code>\\n\\n<b>Load average:</b>\\n<code>${COMPLETE_LOAD}</code>")"
-
-        # call method_telegram
+        TELEGRAM_MESSAGE="$(echo -e "\xE2\x9A\xA0 <b>ALERT: SERVER LOAD</b>\n\nThe server load (<code>${CURRENT_LOAD_PERCENTAGE_ROUNDED}%</code>) on <b>${HOSTNAME}</b> exceeds the threshold of <code>${THRESHOLD_LOAD}</code>\n\n<b>Load average:</b>\n<code>${COMPLETE_LOAD}</code>")"
         method_telegram
     fi
 
-    # check whether the current server memory usage exceeds the threshold and alert if true
+    # ALERT: server memory
     if [ "${CURRENT_MEMORY_PERCENTAGE_ROUNDED}" -ge "${THRESHOLD_MEMORY_NUMBER}" ]; then
-        # create message for Telegram
-        TELEGRAM_MESSAGE="$(echo -e "\xE2\x9A\xA0 <b>ALERT: SERVER MEMORY</b>\\n\\nMemory usage (<code>${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%</code>) on <b>${HOSTNAME}</b> exceeds the threshold of <code>${THRESHOLD_MEMORY}</code>\\n\\n<b>Memory usage:</b>\\n<code>$(free -m -h)</code>")"
-
-        # call method_telegram
+        TELEGRAM_MESSAGE="$(echo -e "\xE2\x9A\xA0 <b>ALERT: SERVER MEMORY</b>\n\nMemory usage (<code>${CURRENT_MEMORY_PERCENTAGE_ROUNDED}%</code>) on <b>${HOSTNAME}</b> exceeds the threshold of <code>${THRESHOLD_MEMORY}</code>\n\n<b>Memory usage:</b>\n<code>$(free -m -h)</code>")"
         method_telegram
     fi
 
-    # check whether the current disk usaged exceeds the threshold and alert if true
+    # ALERT: root filesystem (/)
     if [ "${CURRENT_DISK_PERCENTAGE}" -ge "${THRESHOLD_DISK_NUMBER}" ]; then
-        # create message for Telegram
-        TELEGRAM_MESSAGE="$(echo -e "\xE2\x9A\xA0 <b>ALERT: FILE SYSTEM</b>\\n\\nDisk usage (<code>${CURRENT_DISK_PERCENTAGE}%</code>) on <b>${HOSTNAME}</b> exceeds the threshold of <code>${THRESHOLD_DISK}</code>\\n\\n<b>Filesystem info:</b>\\n<code>$(df -h)</code>")"
-
-        # call method_telegram
+        TELEGRAM_MESSAGE="$(echo -e "\xE2\x9A\xA0 <b>ALERT: FILE SYSTEM</b>\n\nDisk usage (<code>${CURRENT_DISK_PERCENTAGE}%</code>) on <b>${HOSTNAME}</b> exceeds the threshold of <code>${THRESHOLD_DISK}</code>\n\n<b>Filesystem info:</b>\n<code>$(df -h)</code>")"
         method_telegram
     fi
 
-    # check whether the current mountdisk usaged exceeds the threshold and alert if true
-#    if [ "${CURRENT_MOUNTDISK_PERCENTAGE}" -ge "${THRESHOLD_MOUNTDISK_NUMBER}" ]; then
-#        # create message for Telegram
-#        TELEGRAM_MESSAGE="$(echo -e "\xE2\x9A\xA0 <b>ALERT: FILE SYSTEM</b>\\n\\nMountDisk usage (<code>${CURRENT_MOUNTDISK_PERCENTAGE}%</code>) on <b>${HOSTNAME}</b> exceeds the threshold of <code>${THRESHOLD_DISK}</code>\\n\\n<b>Filesystem info:</b>\\n<code>$(df -h)</code>")"
+    # ALERT: data disks under /mnt, /data, /srv (>= 1G)
+    DATADISK_ALERTS=""
+    while read -r target source size used pcent; do
+        # header overslaan
+        if [ "${target}" = "Mounted" ]; then
+            continue
+        fi
 
-        # call method_telegram
-#        method_telegram
-#    fi
+        # alleen mountpoints onder /mnt, /data, /srv
+        case "${target}" in
+            /mnt*|/data*|/srv*)
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        # tmpfs/devtmpfs/overlay overslaan
+        case "${source}" in
+            tmpfs|devtmpfs|overlay)
+                continue
+                ;;
+        esac
+
+        # alleen disks >= 1G
+        if ! echo "${size}" | grep -Eq '^[0-9]+[GT]$'; then
+            continue
+        fi
+
+        # % strippen
+        pct="${pcent%%%}"
+
+        # check tegen threshold
+        if [ "${pct}" -ge "${THRESHOLD_DISK_NUMBER}" ]; then
+            DATADISK_ALERTS+="${target}: ${used} / ${size} (${pct}%)"$'\n'
+        fi
+    done < <(df -h --output=target,source,size,used,pcent)
+
+    if [ -n "${DATADISK_ALERTS}" ]; then
+        TELEGRAM_MESSAGE="$(echo -e "\xE2\x9A\xA0 <b>ALERT: DATA DISK USAGE</b>\n\nThe following data mounts on <b>${HOSTNAME}</b> exceed the threshold of <code>${THRESHOLD_DISK}</code>:\n\n<code>${DATADISK_ALERTS}</code>")"
+        method_telegram
+    fi
 
     # exit when done
     exit 0
 }
+
 
 function feature_updates_cli {
     # function requirements
