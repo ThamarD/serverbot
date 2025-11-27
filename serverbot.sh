@@ -1154,6 +1154,11 @@ function feature_alert_cli {
         # % strippen
         pct="${pcent%%%}"
 
+        # pct moet een getal zijn
+        if ! echo "${pct}" | grep -Eq '^[0-9]+$'; then
+            continue
+        fi
+
         # check tegen threshold
         if [ "${pct}" -ge "${THRESHOLD_DISK_NUMBER}" ]; then
             DATADISK_ALERTS+="- ${target}: ${used} / ${size} (${pct}%)"$'\n'
@@ -1228,6 +1233,11 @@ function feature_alert_telegram {
 
         # % strippen
         pct="${pcent%%%}"
+
+        # pct moet een getal zijn
+        if ! echo "${pct}" | grep -Eq '^[0-9]+$'; then
+            continue
+        fi
 
         # check tegen threshold
         if [ "${pct}" -ge "${THRESHOLD_DISK_NUMBER}" ]; then
